@@ -13,5 +13,7 @@ Initial Commit: 2011-July-01
 ### License
 
 Copyright (c) 2011, under the Simplified BSD License.
+
 For more information on FreeBSD see: http://www.opensource.org/licenses/bsd-license.php
+
 All rights reserved.
