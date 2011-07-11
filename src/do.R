@@ -9,59 +9,59 @@ source(paste(project.path, "src/load.R", sep=""))
 
 test.html <- paste(project.path, "data/test.html", sep="")
 base.url <- "http://www.baseball-reference.com/boxes"
-team <- "COL"
-date.url <- paste(team, "20100411", sep="")
-full.url <- paste(paste(base.url, team, date.url, sep="/"), "0.shtml", sep="")
-
-table.stats <- readHTMLTable(full.url)
-pbyp.stats <- table.stats[["play_by_play"]]
-
-stats.df <- pbyp.stats[!is.na(as.numeric(pbyp.stats$Out)), 
-                       c("Inn", "Out", "Pit(cnt)Sequence", "Pitcher")]
-                                              
-stats.df <- table.stats[["play_by_play"]][, c("Inn", 
-                                              "Out",
-                                              "Pit(cnt)Sequence",
-                                              "Pitcher")]
-
-stats.df$Pitches <- unlist(lapply(strsplit(stats.df$"Pit(cnt)Sequence", ","), 
-                           function(x) as.numeric(x[1])))
-
-pc.run.length <- rle(stats.df$Pitches)
-
-teams <- c("COL")
-year <- c("2010")
-month <- seq(04, 10, by=1)
-# [1] "Inn"              "Score"            "Out"              "RoB"             
-# [5] "Pit(cnt)Sequence" "R/O"              "@Bat"             "Batter"          
-# [9] "Pitcher"          "wWPA"             "wWE"              "Play Description"
-
-url.tmp <- paste("http://www.nba.com/", team, sep="")
-nba.url <- paste(url.tmp, "/stats/", sep="")
-if(team %in% c("bulls", "raptors")) {
-  table.stats <- readHTMLTable(nba.url)
-  stats.one <- table.stats[1]$`NULL`[-1, ]
-  names(stats.one) <- table.stats[1]$`NULL`[1, ]
-  stats.one$Player[stats.one$Player == "Team Averages"] <- "Team Statistics"
-  stats.two <- table.stats[2]$`NULL`[-1, ]
-  names(stats.two) <- table.stats[2]$`NULL`[1, ]
-  stats.two$Player[stats.two$Player == "Team Totals"] <- "Team Statistics"
-  df.team <- merge(stats.one, stats.two[, -(2:3)], by.x="Player", 
-                   by.y="Player")
-  df.team$team <- team
+teams <- c("ARI", "ATL", "BAL", "BOS", "CHC", "CHW", "CIN", "CLE", "COL", "DET",
+           "FLA", "HOU", "KCR", "ANA", "LAD", "MIL", "MIN", "NYM", "NYY", "OAK",
+           "PHI", "PIT", "SDP", "SFG", "SEA", "STL", "TBD", "TEX", "TOR", "WSN")
+years <- 2005:2009
+months <- 4:10
+days <- 1:31
+urls <- c()
+for (team in teams){
+  for (year in years){
+    out.string <- paste(Sys.time(), "--", team, year, sep = " ")
+    print(out.string)
+    for (month in months){
+      for (day in days){
+        ifelse(length(as.character(month) == 1), 
+          date.url <- paste(team, year, 0, month, day, sep=""),
+          date.url <- paste(team, year, month, day, sep="")
+        )
+        for (i in 0:1){
+          full.url <- paste(paste(base.url, team, date.url, sep="/"), i, 
+                            ".shtml", sep="")
+          try({
+              table.stats <- readHTMLTable(full.url)
+              pbyp.stats <- table.stats[["play_by_play"]]
+              stats.df <- pbyp.stats[!is.na(as.numeric(pbyp.stats$Out)), 
+                                     c("Inn", "Out", "Pit(cnt)Sequence", 
+                                       "Pitcher")]
+              stats.df$Pitches <- unlist(lapply(strsplit(
+                                         stats.df$"Pit(cnt)Sequence", ","), 
+                                         function(x) as.numeric(x[1])))
+              stats.df$Inning <- unlist(lapply(strsplit(stats.df$Inn, "[a-z]"), 
+                                        function(x) as.numeric(x[2])))
+              stats.agg <- aggregate(stats.df[, "Pitches"], 
+                                     by=list(stats.df$Inning), FUN="sum")
+              if(sum(stats.agg$x==6) != 0){
+                stats.agg.2 <- aggregate(stats.df[, "Pitches"], 
+                                         by=list(stats.df$Inning), FUN="length")
+                if(stats.agg.2$x[stats.agg$x==6]==6){
+                  urls <- c(urls, c(full.url))
+                  }                            
+                }
+                
+            }, TRUE)
+        }
+      }
+    }
+  }  
 }
-else {
-  doc <- htmlTreeParse(nba.url, useInternalNodes=T)
-  nset.stats <- getNodeSet(doc, "//table[@class=' gSGTable']")    
-  table.stats <- lapply(nset.stats, readHTMLTable, header=F)
-  stats.one <- table.stats[[1]][-(1:3), ]
-  names(stats.one) <- table.stats[[1]][3, ]
-  stats.one$Player[stats.one$Player == "Team Averages"] <- "Team Statistics"
-  nRecords <- dim(stats.one)[1]
-  stats.two <- table.stats[[2]][-(1:3), -(2:3)]
-  names(stats.two) <- table.stats[[2]][3, -(2:3)]
-  stats.two$Player[stats.two$Player == "Team Totals"] <- "Team Statistics"
-  df.team <- merge(stats.one[-nRecords, ], stats.two[-nRecords, ], 
-                   by.x="Player", by.y="Player")
-  df.team$team <- team
-}
+
+write.table(urls, "../data/outfile.csv", row.names=F, col.names=F)
+final.string <- paste(Sys.time(), " -- Finished :)", sep = "")
+print(final.string)
+
+# Started
+#[1] "2011-07-10 17:34:38 -- ARI 2005"
+
+#[1] "2011-07-10 20:50:19 -- Finished :)"
